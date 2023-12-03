@@ -1,12 +1,26 @@
 # CLIP-RL
 Tuning CLIP with RL
 
-Goals:
+
+### Method
+Generative
+
+Text -> Image
+1. Sample images using prompt
+2. Generate/augment captions for sampled images that contains descriptive differences (spatial locations, orientations, object summary, etc.)
+3. Rank these sampled image and generated caption pairs for each prompt
+
+
+Human-Feedback
+- TODO
+
+### Goals:
 - [ ] Collect ranking dataset
-    - [ ] Source textual prompts for image retrieval (use the captions themselves?)
-    - [ ] Source visual prompts for textual retrieval (use the captions themselves?)
+    - [x] Source textual prompts for image retrieval (use the captions themselves?)
+    - [x] Source visual prompts for textual retrieval (use the captions themselves?)
         - If locked encoder tuning can apply to either encoder
-    - [ ] Retrieve 4-9 images for each prompt
+    - [ ] Retrieve 4-9 samples for each prompt
+    = [ ] Text -> Image: Dense caption samples
 - [ ] Collect/Create rankings
 - [ ] Train reward model
 - [ ] Finetune CLIP variants and benchmark
