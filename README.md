@@ -20,7 +20,9 @@ Human-Feedback
     - [x] Source visual prompts for textual retrieval (use the captions themselves?)
         - If locked encoder tuning can apply to either encoder
     - [ ] Retrieve 4-9 samples for each prompt
-    = [ ] Text -> Image: Dense caption samples
+        - Get a few using similarity threshold
+        - Add more samples via augmentations
+    - [ ] Text -> Image: Dense caption samples
 - [ ] Collect/Create rankings
 - [ ] Train reward model
 - [ ] Finetune CLIP variants and benchmark
