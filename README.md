@@ -19,7 +19,7 @@ Human-Feedback
     - [x] Source textual prompts for image retrieval (use the captions themselves?)
     - [x] Source visual prompts for textual retrieval (use the captions themselves?)
         - If locked encoder tuning can apply to either encoder
-    - [ ] Retrieve 4-9 samples for each prompt
+    - [x] Retrieve 4-9 samples for each prompt
         - Get a few using similarity threshold
         - Add more samples via augmentations
     - [ ] Text -> Image: Dense caption samples
