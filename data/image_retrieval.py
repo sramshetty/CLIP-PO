@@ -70,11 +70,23 @@ def parse_args():
         help="whether to generate captions with spatial information for retrieved images"
     )
 
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed to use"
+    )
+
     return parser.parse_args()
 
 
 def create_augments(image_files: List[str], num_augments: int = 4):
     """Create augments of retrieved images"""
+
+    aug_dir = os.path.abspath("./augments")
+    if not os.path.exists(aug_dir):
+        os.makedirs(aug_dir)
+
     aug_paths = []
     while num_augments > 0:
         img_path =  random.choice(image_files)
@@ -87,14 +99,9 @@ def create_augments(image_files: List[str], num_augments: int = 4):
         transform_type = random.choice(list(transform_map.keys()))
         aug_img = transform_map[transform_type](img)
 
-        if not os.path.exists("./data/augments"):
-            os.makedirs("./data/augments")
-
-        aug_path = os.path.abspath(
-            os.path.join(
-                "./data/augments",
-                img_path.split("/")[-1].split(".")[0] + "_" + transform_type + ".png"
-            )
+        aug_path = os.path.join(
+            aug_dir,
+            os.path.split(img_path)[-1].split(".")[0] + "_" + transform_type + ".png"
         )
         if aug_path in aug_paths:
             continue
@@ -151,11 +158,11 @@ def add_spatial(
     data_df = pd.read_parquet(parquet_path)
 
     detailed_captions = []
-    with open("temp_captions.json") as f:
-        try:
+    try:
+        with open("temp_captions.json") as f:
             detailed_captions = json.load(f)
-        except:
-            pass
+    except:
+        pass
     
     rows_to_skip = len(detailed_captions)
     print(f"Skipping {rows_to_skip} rows")
@@ -185,12 +192,15 @@ def add_spatial(
                 'images': [[inputs['images'][0].to(device).to(torch.float16)]],
             }
             gen_kwargs = {"max_length": 2048, "do_sample": False}
-
             
             with torch.no_grad():
                 outputs = model.generate(**inputs, **gen_kwargs)
                 outputs = outputs[:, inputs['input_ids'].shape[1]:]
-                row_captions.append(tokenizer.decode(outputs[0]))
+                caption = tokenizer.decode(outputs[0])
+
+            cleaned = caption.replace("The image showcases", "").replace("</s>", "").strip()
+            cleaned = cleaned[0].upper() + cleaned[1:]
+            row_captions.append(cleaned)
         
         detailed_captions.append(row_captions)
             
@@ -212,6 +222,9 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     args = parse_args()
+
+    random.seed(args.seed)
+
     caption_file = args.caption_file_path
     img_dir = os.path.abspath(args.img_dir)
 
