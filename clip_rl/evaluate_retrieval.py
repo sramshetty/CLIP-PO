@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 from glob import glob
 import os
 from PIL import Image
-import random
 from tqdm import tqdm
 
 import numpy as np
@@ -25,6 +24,7 @@ def parse_args():
     parser.add_argument(
         '--caption_file',
         type=str,
+        required=True,
         help="path to coco caption file"
     )
     parser.add_argument(
@@ -49,8 +49,14 @@ def parse_args():
     parser.add_argument(
         '--batch_size',
         type=int,
+        default=16,
+        help="batch size for encoding inputs"
+    )
+    parser.add_argument(
+        '--eval_batch_size',
+        type=int,
         default=1000,
-        help="batch size for MRR calculation"
+        help="batch size for metric calculation"
     )
 
     parser.add_argument(
@@ -69,11 +75,11 @@ def parse_args():
 
 def build_features(model, tokenizer, imgs, caps):
     image_input = torch.tensor(np.stack(imgs)).to(device)
-    orig_text_tokens = tokenizer(["This is " + desc for desc in caps]).to(device)
+    text_tokens = tokenizer(["This is " + desc for desc in caps]).to(device)
 
     with torch.no_grad():
         image_features = model.encode_image(image_input).float()
-        text_features = model.encode_text(orig_text_tokens).float()
+        text_features = model.encode_text(text_tokens).float()
 
     image_features /= image_features.norm(dim=-1, keepdim=True)
     text_features /= text_features.norm(dim=-1, keepdim=True)
@@ -105,20 +111,15 @@ def evaluate(similarities):
     return mrr/len(similarities), tp, fn
 
 
-def main(args, model, tokenizer, images, captions):
+def main(args, image_features, text_features):
     mrrs = []
     tp = 0  # true positives
     fn = 0  # false negatives
 
-    for i in tqdm(range(0, len(images), args.batch_size)):
+    for i in tqdm(range(0, len(image_features), args.eval_batch_size)):
         # Ignore batches that are not full
-        if len(images) - i < args.batch_size:
+        if len(image_features) - i < args.eval_batch_size:
             continue
-
-        image_features, text_features = build_features(model, tokenizer, images, captions)
-        image_features = image_features
-        text_features = text_features
-        mod_text_features = mod_text_features
 
         sims = text_features @ image_features.T
         sims = sims.cpu().numpy()
@@ -128,9 +129,9 @@ def main(args, model, tokenizer, images, captions):
         tp += batch_tp
         fn += batch_fn
     
-    recall_1 = tp / (tp + fn + 1e-12)
+    recall = tp / (tp + fn + 1e-12)
 
-    return recall_1, np.mean(mrrs), np.std(mrrs)
+    return recall, np.mean(mrrs), np.std(mrrs)
 
 
 if  __name__ == "__main__":
@@ -144,6 +145,8 @@ if  __name__ == "__main__":
     model.to(device)
     tokenizer = open_clip.get_tokenizer(args.model)
 
+    image_features = []
+    text_features = []
     if args.dataset_type == "coco":
         print("Fetching COCO data ...")
         coco = COCO(args.caption_file)
@@ -151,30 +154,46 @@ if  __name__ == "__main__":
 
         images = []
         captions = []
-        for sample in tqdm(coco_dicts.values(), desc="fetching images and captions"):
-            # TODO: Avoid repeated loading of images
+        for n, sample in enumerate(tqdm(coco_dicts.values(), desc="creating encoded pairs")):
             filepath = glob(os.path.join(args.image_dir, str(sample['image_id']).zfill(12) + "*"))[0]
             images.append(preprocess(Image.open(filepath).convert("RGB")))
             captions.append(sample['caption'])
+
+            if (n > 0 and n % args.batch_size == 0):
+                batch_img_feats, batch_txt_feats = build_features(model, tokenizer, images, captions)
+                image_features.append(batch_img_feats)
+                text_features.append(batch_txt_feats)
+                images, captions = [], []
+        
+        # last batch may not be processed
+        if images:
+            batch_img_feats, batch_txt_feats = build_features(model, tokenizer, images, captions)
+            image_features.append(batch_img_feats)
+            text_features.append(batch_txt_feats)
+            del images, captions
+    
+    image_features = torch.cat(image_features, dim=0)
+    text_features = torch.cat(text_features, dim=0)
 
     recalls_1 = []
     mean_mrrs = []
     std_mrrs = []
     for i in range(args.iterations):
         print(f"Evaluation iteration {i}")
-        random.seed(i)
-        samples = list(zip(images, captions))
-        random.shuffle(samples)
-        images, captions = zip(*samples)
+
+        indices = torch.randperm(image_features.size(0), generator=torch.manual_seed(i))
+        image_features, text_features = image_features[indices], text_features[indices]
+
         recall, mean_mrr, std_mrr = main(
             args=args,
-            model=model,
-            tokenizer=tokenizer,
-            images=images,
-            captions=captions
+            image_features=image_features,
+            text_features=text_features
         )
+        recalls_1.append(recall)
+        mean_mrrs.append(mean_mrr)
+        std_mrrs.append(std_mrr)
 
     print(f"Recall@1 / iter = {recalls_1}")
     print(f"Recall@1 Mean = {np.mean(recalls_1)}")
-    print(f"Image MRRs (Batches of {args.batch_size}) - Mean / iter: {mean_mrrs}, Std / iter: {std_mrrs}")
-    print(f"Image MRRs (Batches of {args.batch_size}) - Mean: {np.mean(mean_mrrs)}, Std: {np.mean(std_mrrs)}")
+    print(f"Image MRRs (Batches of {args.eval_batch_size}) - Mean / iter: {mean_mrrs}, Std / iter: {std_mrrs}")
+    print(f"Image MRRs (Batches of {args.eval_batch_size}) - Mean: {np.mean(mean_mrrs)}, Std: {np.mean(std_mrrs)}")
