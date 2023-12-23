@@ -1,18 +1,9 @@
-import os
-from PIL import Image
-from tqdm import tqdm
-from typing import Optional, Union
-
-import einops
+from typing import Union
 
 import torch
 import torch.nn as nn
 
 import open_clip
-
-from pycocotools.coco import COCO
-
-from data.datasets.dci.impl import DenseCaptionedDataset, get_clip_ready_ds
 
 
 class RewardCLIP(nn.Module):
@@ -74,4 +65,3 @@ class RewardCLIP(nn.Module):
             return loss, {"pos_sim": rewards_pos, "neg_sim": rewards_neg}
         
         return loss
-        
