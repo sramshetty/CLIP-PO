@@ -47,6 +47,11 @@ def parse_args():
         help="open_clip pretraining dataset associated with model"
     )
     parser.add_argument(
+        '--checkpoint',
+        type=str,
+        help="model checkpoint path"
+    )
+    parser.add_argument(
         '--batch_size',
         type=int,
         default=16,
@@ -142,6 +147,8 @@ if  __name__ == "__main__":
 
     print("Loading model ...")
     model, _, preprocess = open_clip.create_model_and_transforms(args.model, pretrained=args.pretrained)
+    if args.checkpoint:
+        model.load_state_dict(torch.load(args.checkpoint))
     model.to(device)
     tokenizer = open_clip.get_tokenizer(args.model)
 
