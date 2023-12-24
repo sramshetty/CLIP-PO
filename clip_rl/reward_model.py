@@ -19,7 +19,7 @@ class RewardCLIP(nn.Module):
 
         self.device = device
 
-        self.clip, _, self.preprocess = open_clip.create_model_and_transforms(
+        self.clip, self.train_preprocess, self.preprocess = open_clip.create_model_and_transforms(
             clip,
             pretrained=pretrained,
         )
@@ -34,31 +34,29 @@ class RewardCLIP(nn.Module):
 
         self.alpha = alpha  # factor to multiply sim difference; may want to make this learnable
     
-    def encode_texts(self, texts):
-        texts = self.tokenizer(texts)
-        text_features = self.clip.encode_text(texts.to(self.device))
-        text_features /= text_features.norm(dim=-1, keepdim=True)
+    def load(self, state_dict):
+        self.clip.load_state_dict(state_dict)
+    
+    def encode_texts(self, tokens):
+        text_features = self.clip.encode_text(tokens.to(self.device))
+        text_features = text_features / text_features.clone().norm(dim=-1, keepdim=True)
         return text_features
 
     def encode_images(self, images):
-        image_feats = self.clip.encode_image(torch.cat(images, dim=0).to(self.device))
-        image_feats /= image_feats.norm(dim=-1, keepdim=True)
+        image_feats = self.clip.encode_image(images.to(self.device))
+        image_feats = image_feats / image_feats.clone().norm(dim=-1, keepdim=True)
         return image_feats
     
     def forward(
         self,
-        input_ids: torch.Tensor,
-        neg_input_ids: torch.Tensor,
-        images: torch.Tensor,
+        input_embs: torch.Tensor,
+        neg_input_embs: torch.Tensor,
+        image_embs: torch.Tensor,
         return_sims: bool = False,
     ):
-        # currently only handles binary case
-        text_feats = self.encode_texts(input_ids)
-        neg_text_feats = self.encode_texts(neg_input_ids)
-        image_feats = self.encode_images(images)
-
-        rewards_pos = text_feats @ image_feats.T
-        rewards_neg = neg_text_feats @ image_feats.T
+        image_embs = image_embs.T
+        rewards_pos = (input_embs @ image_embs).diagonal()
+        rewards_neg = (neg_input_embs @ image_embs).diagonal()
         loss = -nn.functional.logsigmoid((rewards_pos - rewards_neg) * self.alpha).mean()
 
         if return_sims:
