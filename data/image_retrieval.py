@@ -64,10 +64,17 @@ def parse_args():
         action="store_true",
         help="whether to retrieve images"
     )
+
     parser.add_argument(
         "--add_spatial",
         action="store_true",
         help="whether to generate captions with spatial information for retrieved images"
+    )
+    parser.add_argument(
+        "--max_gen_tokens",
+        type=int,
+        default=77,
+        help="max number of tokens to generate for spatial caption"
     )
 
     parser.add_argument(
@@ -191,7 +198,7 @@ def add_spatial(
                 'attention_mask': inputs['attention_mask'].unsqueeze(0).to(device),
                 'images': [[inputs['images'][0].to(device).to(torch.float16)]],
             }
-            gen_kwargs = {"max_length": 2048, "do_sample": False}
+            gen_kwargs = {"max_length": inputs["input_ids"].shape[-1] + args.max_gen_tokens, "do_sample": False}
             
             with torch.no_grad():
                 outputs = model.generate(**inputs, **gen_kwargs)
