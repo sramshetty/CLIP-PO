@@ -15,14 +15,14 @@ Human-Feedback
 - TODO
 
 ### Goals:
-- [ ] Collect ranking dataset
+- [X] Collect ranking dataset
     - [x] Source textual prompts for image retrieval (use the captions themselves?)
     - [x] Source visual prompts for textual retrieval (use the captions themselves?)
         - If locked encoder tuning can apply to either encoder
     - [x] Retrieve 4-9 samples for each prompt
         - Get a few using similarity threshold
         - Add more samples via augmentations
-    - [ ] Text -> Image: Dense caption samples
-- [ ] Collect/Create rankings
+    - [X] Text -> Image: Dense caption samples
+- [X] Collect/Create rankings
 - [ ] Train reward model
 - [ ] Finetune CLIP variants and benchmark
