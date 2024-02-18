@@ -4,6 +4,7 @@ from typing import Union
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 import open_clip
 
@@ -15,6 +16,8 @@ class ClipDPOTrainer(nn.Module):
         pretrained: str,
         beta: int,
         save_path: str,
+        loss_type: str,
+        label_smoothing: float,
         device: Union[str, torch.device],
     ):
         super().__init__()
@@ -39,6 +42,11 @@ class ClipDPOTrainer(nn.Module):
         self.beta = beta
 
         self.save_path = save_path
+
+        self.loss_type = loss_type
+        self.label_smoothing = label_smoothing
+
+        assert self.loss_type in {"ipo", "dpo"}
     
     def _compute_reward(self, clip_model, images, tokens):
         image_feats = clip_model.encode_image(images.to(self.device))
@@ -46,27 +54,35 @@ class ClipDPOTrainer(nn.Module):
         text_features = clip_model.encode_text(tokens.to(self.device))
         text_features = text_features / text_features.clone().norm(dim=-1, keepdim=True)
         
-        similarities = image_feats @ text_features.T
+        similarities = text_features @ image_feats.T
         probs = (similarities + 1) / 2
-        scores = probs.split(probs.size(1) // 2, dim=1)
-        reward = scores[0] / scores[1]
-
-        return reward
+        pref_probs = torch.diagonal(probs)
+        rej_probs = torch.diagonal(probs[probs.size(0) // 2:])
+        rewards = pref_probs / rej_probs
+        
+        return rewards
     
-    def _compute_loss(self, frozen_reward, update_reward):
-        return -nn.functional.logsigmoid(self.beta * torch.log(update_reward / frozen_reward)).mean()
+    def _compute_loss(self, frozen_rewards, update_rewards):
+        logits = torch.log(update_rewards / frozen_rewards)
+        if self.loss_type == "ipo":
+            loss = (logits - 1/(2 * self.beta)) ** 2
+        else:
+            loss = -F.logsigmoid(self.beta * logits) * (1 - self.label_smoothing) - F.logsigmoid(-self.beta * logits) * self.label_smoothing
+
+        return loss.mean()
 
     def save(self, save_path):
         torch.save(self.clip.state_dict(), save_path)
     
     def step(self, images, tokens):
         # compute frozen model's probs
-        frozen_reward = self._compute_reward(self.frozen_clip, images, tokens)
+        with torch.no_grad():
+            frozen_rewards = self._compute_reward(self.frozen_clip, images, tokens)
         
         # compute update model's probs
-        update_reward = self._compute_reward(self.clip, images, tokens)
+        update_rewards = self._compute_reward(self.clip, images, tokens)
 
-        return self._compute_loss(frozen_reward=frozen_reward, update_reward=update_reward)
+        return self._compute_loss(frozen_rewards=frozen_rewards, update_rewards=update_rewards), frozen_rewards.detach(), update_rewards.detach()
     
     def train(
         self,
@@ -83,7 +99,7 @@ class ClipDPOTrainer(nn.Module):
 
                 optimizer.zero_grad()
 
-                loss = self.step(
+                loss, frozen_rewards, update_rewards = self.step(
                     images=batch['image'],
                     tokens=torch.cat([batch['preferred'], batch['rejected']]).squeeze()
                 )
@@ -92,8 +108,15 @@ class ClipDPOTrainer(nn.Module):
                 optimizer.step()
                 scheduler.step()
 
+                frozen_acc = (frozen_rewards > 1).sum() / dataloader.batch_size
+                update_acc = (update_rewards > 1).sum() / dataloader.batch_size
+
                 if i > 0 and i % 100 == 0:
                     print(f"Loss {i}/{len(dataloader)} = {loss}")
+                    print(f"Frozen Rewards {i}/{len(dataloader)} = {frozen_rewards}")
+                    print(f"Update Rewards {i}/{len(dataloader)} = {update_rewards}")
+                    print(f"Frozen Reward Accuracy {i}/{len(dataloader)} = {frozen_acc}")
+                    print(f"Update Reward Accuracy {i}/{len(dataloader)} = {update_acc}")
             
             if (ep + 1) % save_freq == 0:
                 self.save(save_path=self.save_path)
