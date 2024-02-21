@@ -1,4 +1,4 @@
-# CLIP-PO
+# (WIP) CLIP-PO
 
 ## Method
 Generative
@@ -27,6 +27,12 @@ Human-Feedback
     - [X] IPO?
 - [ ] Finetune CLIP variants and benchmark
     - [X] Tuned on VSR and benchmark -> Near human-level accuracy
+
+Model Name | Accuracy | Macro Average Recall | Macro Average Precision | Macro Average F1 |
+--- | --- | --- | --- | --- |
+open_clip ViT-H-14 | 0.364 | 0.357 | 0.354 | 0.356 |
+open_clip ViT-H-14 w/ VSR DPO | 0.883 | 0.891 | 0.899 | 0.895 |
+open_clip ViT-H-14 w/ VSR IPO | 0.877 | 0.886 | 0.895 | 0.891 |
 
 ## Citations
 
