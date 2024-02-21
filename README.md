@@ -28,6 +28,7 @@ Human-Feedback
 - [ ] Finetune CLIP variants and benchmark
     - [X] Tuned on VSR and benchmark -> Near human-level accuracy
 
+### VSR Random Results
 Model Name | Accuracy | Macro Average Recall | Macro Average Precision | Macro Average F1 |
 --- | --- | --- | --- | --- |
 open_clip ViT-H-14 | 0.364 | 0.357 | 0.354 | 0.356 |
