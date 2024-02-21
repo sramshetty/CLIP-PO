@@ -25,8 +25,10 @@ Human-Feedback
 - [X] Collect/Create rankings
 - [X] Train reward model
 - [ ] Implement RL Trainer
-    - [ ] Formulate as a DPO problem?
+    - [X] Formulate as a DPO problem?
+    - [X] IPO?
 - [ ] Finetune CLIP variants and benchmark
+    - [X] Tuned on VSR and benchmark -> Near human-level accuracy
 
 ## Citations
 
@@ -38,5 +40,21 @@ Human-Feedback
     title = {{OpenCLIP}},
     version = {v0.1},
     year = {2021}
+}
+
+@article{Liu2022VisualSR,
+    title={Visual Spatial Reasoning},
+    author={Fangyu Liu and Guy Edward Toh Emerson and Nigel Collier},
+    journal={Transactions of the Association for Computational Linguistics},
+    year={2023},
+}
+
+@inproceedings{
+    yuksekgonul2023when,
+    title={When and why Vision-Language Models behave like  Bags-of-Words, and what to do about it?},
+    author={Mert Yuksekgonul and Federico Bianchi and Pratyusha   Kalluri and Dan Jurafsky and James Zou},
+    booktitle={International Conference on Learning Representations},
+    year={2023},
+    url={https://openreview.net/forum?id=KRLUvxh8uaX}
 }
 ```
