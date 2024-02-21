@@ -18,6 +18,7 @@ class ClipDPOTrainer(nn.Module):
         save_path: str,
         loss_type: str,
         label_smoothing: float,
+        lock_vision: bool,
         device: Union[str, torch.device],
     ):
         super().__init__()
@@ -28,7 +29,8 @@ class ClipDPOTrainer(nn.Module):
             clip,
             pretrained=pretrained,
         )
-        self.clip.lock_image_tower()
+        if lock_vision:
+            self.clip.lock_image_tower()
         self.clip.to(self.device)
 
         self.frozen_clip = copy.deepcopy(self.clip)
@@ -58,12 +60,12 @@ class ClipDPOTrainer(nn.Module):
         probs = (similarities + 1) / 2
         pref_probs = torch.diagonal(probs)
         rej_probs = torch.diagonal(probs[probs.size(0) // 2:])
-        rewards = pref_probs / rej_probs
+        rewards = pref_probs - rej_probs
         
         return rewards
     
     def _compute_loss(self, frozen_rewards, update_rewards):
-        logits = torch.log(update_rewards / frozen_rewards)
+        logits = update_rewards - frozen_rewards
         if self.loss_type == "ipo":
             loss = (logits - 1/(2 * self.beta)) ** 2
         else:
