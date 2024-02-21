@@ -1,6 +1,4 @@
-# CLIP-RL
-Tuning CLIP with RL
-
+# CLIP-PO
 
 ## Method
 Generative
