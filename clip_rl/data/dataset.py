@@ -6,6 +6,7 @@ from pathlib import Path
 from PIL import Image
 import random
 from tqdm import tqdm
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -250,29 +251,29 @@ class CSVRewardDataset(Dataset):
         self,
         model: nn.Module,
         data_csv: str,
-        image_dir: str = None,
-        dilution: float = 0.2,
-        split: str = None,
+        preferred_col_name: str,
+        rejected_col_name: str,
+        image_path_col_name: str,
+        image_path_func: Callable[[str], str] = lambda x: x,
+        subset_size_ratio: float = 0.2,
         encode: bool = True,
-        seed: int = 42 
+        seed: int = 42
     ):
         super().__init__()
         self.model = model
         self.tokenizer = self.model.tokenizer
         self.preprocess = self.model.train_preprocess
+        
+        self.preferred_col = preferred_col_name
+        self.rejected_col = rejected_col_name
+        self.image_col = image_path_col_name
 
-        self.image_dir = image_dir
+        self.image_path_func = image_path_func
 
-        self.data_df = pd.read_csv(data_csv)
+        sep = "\t" if data_csv.endswith("tsv") else None
+        self.data_df = pd.read_csv(data_csv, sep=sep)
+        self.data_df = self.data_df.sample(n=int(len(self.data_df) * subset_size_ratio), random_state=seed)
         self.num_samples = len(self.data_df)
-        train_df = self.data_df.sample(n=int(self.num_samples * 0.8), random_state=seed)
-        if split == "test":
-            self.data_df = self.data_df.drop(train_df.index)
-            self.preprocess = self.model.preprocess
-        else:
-            self.data_df = train_df
-
-        self.dilution = dilution
 
         self.encode = encode
 
@@ -280,15 +281,25 @@ class CSVRewardDataset(Dataset):
         self.create_samples()
 
     def create_samples(self):
-        pass
+        for preferred, rejected, image_path in tqdm(
+            zip(self.data_df[self.preferred_col], self.data_df[self.rejected_col], self.data_df[self.image_col]),
+            total=self.num_samples,
+            desc="creating encoded pairs"
+        ):
+            image_path = self.image_path_func(image_path)
+            self.data_list.append({
+                'preferred': preferred.strip(),
+                'rejected': rejected.strip(),
+                'image_path': image_path
+            })
     
     def __getitem__(self, index):
         item = self.data_list[index]
         
-        caption, rejected, img_path = item['caption'], item['rejected'], item['image_path']
+        preferred, rejected, img_path = item['preferred'], item['rejected'], item['image_path']
 
         if not self.encode:
-            preferred = self.tokenizer(caption)
+            preferred = self.tokenizer(preferred)
             rejected = self.tokenizer(rejected)
             image = self.preprocess(Image.open(img_path).convert('RGB'))
             res = {
@@ -298,7 +309,7 @@ class CSVRewardDataset(Dataset):
             }
             return res
     
-        prefers = self.model.encode_texts(self.tokenizer(caption))
+        prefers = self.model.encode_texts(self.tokenizer(preferred))
         rejects = self.model.encode_texts(self.tokenizer(rejected))
         image = self.model.encode_images(self.preprocess(Image.open(img_path).convert('RGB')).unsqueeze(0))
         res = {
@@ -310,7 +321,7 @@ class CSVRewardDataset(Dataset):
         return res
 
     def __len__(self):
-        return len(self.data_list)
+        return self.num_samples
 
 
 class Cc12mApeDataset(Dataset):
@@ -353,7 +364,7 @@ class Cc12mApeDataset(Dataset):
             img_url = self.image_urls[index]
 
             text_emb = self.clip.encode_text(self.tokenizer(caption).to(device))
-            text_emb = text_emb / text_emb.clone().norm(dim=-1, keepdim=True)
+            text_emb = text_emb / text_emb.norm(dim=-1, keepdim=True)
             try:
                 img = imread(img_url)
             except:
@@ -362,7 +373,7 @@ class Cc12mApeDataset(Dataset):
             image_emb = self.clip.encode_image(
                 self.preprocess(Image.fromarray(img).convert('RGB')).unsqueeze(0).to(device)
             )
-            image_emb = image_emb / image_emb.clone().norm(dim=-1, keepdim=True)
+            image_emb = image_emb / image_emb.norm(dim=-1, keepdim=True)
             res = {
                 'caption': caption,
                 'text_emb': text_emb.squeeze(),
@@ -431,7 +442,7 @@ class CocoAlignDataset(Dataset):
         
         if self.text_embeds is None:
             text_emb = self.clip.encode_text(self.tokenizer(caption).to(device))
-            text_emb = text_emb / text_emb.clone().norm(dim=-1, keepdim=True)
+            text_emb = text_emb / text_emb.norm(dim=-1, keepdim=True)
             text_emb = text_emb.squeeze()
         else:
             text_emb = self.text_embeds[index].to(device)
@@ -441,7 +452,7 @@ class CocoAlignDataset(Dataset):
             image_emb = self.clip.encode_image(
                 self.preprocess(Image.open(img_path).convert('RGB')).unsqueeze(0).to(device)
             )
-            image_emb = image_emb / image_emb.clone().norm(dim=-1, keepdim=True)
+            image_emb = image_emb / image_emb.norm(dim=-1, keepdim=True)
             image_emb = image_emb.squeeze()
         else:
             img_emb_idx = self.files_dict[img_id]
