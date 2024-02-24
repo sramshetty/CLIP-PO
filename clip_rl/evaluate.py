@@ -14,7 +14,7 @@ import open_clip
 
 from pycocotools.coco import COCO
 
-from .data.data_utils import NEGATE
+from data.data_utils import NEGATE
 
 
 def parse_args():
@@ -272,9 +272,9 @@ def main(args):
         true_captions = []
         for n, sample in enumerate(tqdm(vsr_dataset, total=len(vsr_dataset), desc="creating encoded pairs")):
             if "train" in sample['image_link']:
-                data_dir = "coco_train2017"
+                data_dir = "coco_2017/coco_train2017"
             else:
-                data_dir = "coco_val2017"
+                data_dir = "coco_2017/coco_val2017"
             filepath = os.path.join(args.image_dir, data_dir, sample['image'])
             images.append(preprocess(Image.open(filepath).convert("RGB")))
 
