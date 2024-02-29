@@ -54,12 +54,18 @@ open_clip ViT-H-14 w/ VSR IPO | 0.877 | 0.886 | 0.895 | 0.891 |
     year={2023},
 }
 
-@inproceedings{
-    yuksekgonul2023when,
-    title={When and why Vision-Language Models behave like  Bags-of-Words, and what to do about it?},
-    author={Mert Yuksekgonul and Federico Bianchi and Pratyusha   Kalluri and Dan Jurafsky and James Zou},
+@inproceedings{yuksekgonul2023when,
+    title={When and why Vision-Language Models behave like Bags-of-Words, and what to do about it?},
+    author={Mert Yuksekgonul and Federico Bianchi and Pratyusha Kalluri and Dan Jurafsky and James Zou},
     booktitle={International Conference on Learning Representations},
     year={2023},
     url={https://openreview.net/forum?id=KRLUvxh8uaX}
+}
+
+@inproceedings{hsieh2023sugarcrepe,
+    title={SugarCrepe: Fixing Hackable Benchmarks for Vision-Language Compositionality},
+    author={Hsieh, Cheng-Yu and Zhang, Jieyu and Ma, Zixian and Kembhavi, Aniruddha and Krishna, Ranjay},
+    booktitle={Thirty-Seventh Conference on Neural Information Processing Systems Datasets and Benchmarks Track},
+    year={2023}
 }
 ```
