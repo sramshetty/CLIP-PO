@@ -27,6 +27,8 @@ Human-Feedback
     - [X] IPO?
 - [ ] Finetune CLIP variants and benchmark
     - [X] Tuned on VSR and benchmark -> Near human-level accuracy
+    - [ ] ARO
+    - [ ] SugarCrepe
 
 ### VSR Random Results
 Model Name | Accuracy | Macro Average Recall | Macro Average Precision | Macro Average F1 |
