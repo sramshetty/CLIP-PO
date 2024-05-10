@@ -11,7 +11,7 @@ import open_clip
 from utils import patch_model
 
 
-class ClipDPOTrainer(nn.Module):
+class ClipDPOTrainer:
     def __init__(
         self,
         clip: str,
@@ -196,7 +196,7 @@ class ClipDPOTrainer(nn.Module):
         self.save(save_path=self.save_path)
 
 
-class CoCaDPOTrainer(nn.Module):
+class CoCaDPOTrainer:
     def __init__(
         self,
         coca: str,
